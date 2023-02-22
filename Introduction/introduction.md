@@ -16,6 +16,7 @@ Ansible refers to both the software and the company that runs the open source pr
 # 4. Ansible Terminologies
 - **Host** - Remote servers to configure.
 - **Playbook** - A playbook describes which hosts to configure, and an ordered list of tasks to perform on those hosts.
+- **Inventory** - The collection of hosts that Ansible knows about is called inventory.
 
 # 5. How Ansible works?
 1. Ansible will make SSH connection in parallel to hosts,
