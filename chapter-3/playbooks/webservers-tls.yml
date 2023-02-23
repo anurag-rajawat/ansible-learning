@@ -1,0 +1,82 @@
+---
+- hosts: webservers
+  name: Configure webserver with nginx and TLS
+  become: true
+  gather_facts: false
+
+# A list of variables and value
+  vars:
+    tls_dir: /etc/nginx/ssl/
+    key_file: nginx.key
+    cert_file: nginx.crt
+    conf_file: /etc/nginx/sites-available/default
+    server_name: server1
+
+# Handlers are one of the conditional forms that Ansible supports. A handler is similar to a task, but it runs only if it has been notified by a task.
+# A task will fire the notification if Ansible recognizes that the task has changed the state of the system.
+# Handlers usually run at the end of the play after all of the tasks have been run. To force a notified handler in the middle of a play.
+# The only common uses for handlers are reboots and restarting services.
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+  tasks:
+    - name: Ensure nginx is installed
+      ansible.builtin.package:
+        name: nginx
+        update_cache: true
+        state: present
+
+    - name: Create directories for TLS certificates
+      ansible.builtin.file:
+        path: "{{ tls_dir }}"
+        state: directory
+        mode: '0750'
+      notify: Restart nginx
+
+    - name: Copy TLS files
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ tls_dir }}"
+        mode: '0600'
+      loop:
+        - "{{ key_file }}"
+        - "{{ cert_file }}"
+      notify: Restart nginx
+
+    - name: Manage nginx config template
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: "{{ conf_file }}"
+        mode: '0644'
+      notify: Restart nginx
+
+    - name: Enable configuration
+      ansible.builtin.file:
+        dest: /etc/nginx/sites-enabled/default
+        src: /etc/nginx/sites-available/default
+        state: link
+
+    - name: Install home page
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: /usr/share/nginx/html/index.html
+        mode: '0644'
+
+    - name: Restart nginx
+      ansible.builtin.meta:
+        flush_handlers
+
+    - name: Test it
+      delegate_to: localhost
+      become: false
+      ansible.builtin.uri:
+        url: 'https://localhost:443/index.html'
+        validate_certs: false
+        return_content: true
+      register: this
+      failed_when: "'Running on ' not in this.content"
+      tags:
+        - test

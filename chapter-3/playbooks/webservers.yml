@@ -1,0 +1,35 @@
+---
+# Play must contain the 'hosts' variable. hosts = A set of hosts to configure
+- hosts: webservers
+  name: Configure webserver with nginx
+# Ansible will become the become_user to run tasks, become_user can be used to specify root (the default if omitted) or another user
+  become: true
+  tasks:
+    - name: Ensure nginx is installed
+      ansible.builtin.package:
+        name: nginx
+        update_cache: true
+        state: present
+
+    - name: Copy nginx config file
+      ansible.builtin.copy:
+        src: nginx.conf
+        dest: /etc/nginx/sites-available/default
+        mode: preserve
+
+    - name: Enable configuration
+      ansible.builtin.file:
+        dest: /etc/nginx/sites-enabled/default
+        src: /etc/nginx/sites-available/default
+        state: link
+
+    - name: Copy index.html file
+      ansible.builtin.template:
+        src: index.html.j2
+        dest: /usr/share/nginx/html/index.html
+        mode: preserve
+
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
